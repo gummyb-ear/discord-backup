@@ -521,9 +521,12 @@ ${rows}
   const names = merged.map(m => (m.speaker || "").trim()).filter(Boolean);
   const maxNameLen = Math.min(14, Math.max(0, ...names.map(n => [...n].length)));
 
-  const GAP = "   ";
-  const labelWidth = maxNameLen + 1;
-  const contPrefix = " ".repeat(labelWidth) + GAP;
+  const GAP = "   ";              // 화자와 내용 사이
+  const EXTRA_INDENT = "    ";    // ← 두번째 줄부터 추가 4칸
+
+  const labelWidth = maxNameLen + 1; // ":" 포함
+  const baseContPrefix = " ".repeat(labelWidth) + GAP;
+  const contPrefix = baseContPrefix + EXTRA_INDENT;
 
   const hrLen = Math.max(28, labelWidth + GAP.length + 36);
   const HR = "_".repeat(hrLen);
@@ -550,8 +553,10 @@ ${rows}
       continue;
     }
 
+    // 첫 줄
     out += firstPrefix + (lines[0] ?? "") + "\n";
 
+    // 두 번째 줄부터 +4칸
     for (let i=1; i<lines.length; i++){
       out += contPrefix + lines[i] + "\n";
     }
