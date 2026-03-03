@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>디스코드 썰 백업 변환기</title>
+  <style>
+    :root{
+      --bg:#0b0b0d;
+      --panel:#111114;
+      --panel2:#141419;
+      --line:#26262b;
+      --text:#f5f5f7;
+      --muted:#a1a1aa;
+      --accent:#A200DD;
+
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+    }
+
+    *{ box-sizing:border-box; }
+
+    body{
+      margin:0;
+      background:linear-gradient(180deg, #07070a, var(--bg));
+      color:var(--text);
+      font-family:var(--sans);
+    }
+    .wrap{
+      max-width:1100px;
+      margin:0 auto;
+      padding:24px;
+    }
+    h1{
+      font-size:18px;
+      font-weight:700;
+      margin:0 0 12px 0;
+      letter-spacing:-0.2px;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:14px;
+    }
+    @media (min-width: 980px){
+      .grid{ grid-template-columns: 1fr 1fr; }
+    }
+    .card{
+      background:rgba(17,17,20,0.92);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:14px;
+      box-shadow:0 12px 34px rgba(0,0,0,0.35);
+      overflow:hidden;
+    }
+    .card h2{
+      font-size:13px;
+      margin:0 0 10px 0;
+      font-weight:650;
+      color:var(--muted);
+      letter-spacing:0.1px;
+    }
+
+    textarea{
+      width:100%;
+      min-height:420px;
+      resize:vertical;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,0.35);
+      color:var(--text);
+      padding:12px;
+      font-family:var(--mono);
+      font-size:12.5px;
+      line-height:1.45;
+      outline:none;
+      display:block;
+    }
+    textarea:focus{
+      border-color: rgba(162,0,221,0.65);
+    }
+
+    .row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      margin:10px 0 0;
+    }
+    button{
+      cursor:pointer;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,0.35);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      font-weight:650;
+      font-size:13px;
+    }
+    button.primary{
+      border-color: rgba(162,0,221,0.65);
+      background: rgba(162,0,221,0.14);
+    }
+    button:hover{
+      border-color: rgba(162,0,221,0.65);
+    }
+
+    label{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      font-size:12.5px;
+      color:var(--muted);
+      user-select:none;
+    }
+    input[type="checkbox"]{ transform:translateY(1px); }
+    input[type="datetime-local"]{
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,0.35);
+      color:var(--text);
+      padding:9px 10px;
+      font-family:var(--mono);
+      font-size:12.5px;
+      outline:none;
+    }
+    input[type="datetime-local"]:focus{
+      border-color: rgba(162,0,221,0.65);
+    }
+
+    .hint{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.5;
+    }
+
+    /* ===== Preview ===== */
+    .preview{
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:#000;
+      color:#fff;
+      padding:12px;
+      overflow:auto;
+      max-height:520px;
+    }
+
+    .preview .discord-backup{
+      color:#fff !important;
+      background:transparent !important;
+    }
+    .preview .discord-backup .meta{
+      color: rgba(255,255,255,0.65) !important;
+    }
+    .preview .discord-backup .msg{
+      border-top:1px solid rgba(255,255,255,0.10) !important;
+    }
+    .preview .discord-backup .who{
+      color:#fff !important;
+      opacity:0.95 !important;
+      font-weight:700 !important;
+    }
+    .preview .discord-backup .who .colon{
+      color:inherit !important;
+      font-weight:inherit !important;
+    }
+    .preview .discord-backup .say{
+      color:#fff !important;
+      opacity:0.95 !important;
+      white-space:pre-wrap !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>디스코드 썰 백업 변환기</h1>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Input</h2>
+        <textarea id="input" placeholder="여기에 디스코드 대화 내용을 그대로 붙여넣으세요."></textarea>
+
+        <div class="row">
+          <button class="primary" id="btnConvert">변환</button>
+          <button id="btnClear">삭제</button>
+
+          <label title="Discord가 어제/오늘로 표시한 시간을 기준 날짜로 환산할 때 사용">
+            대화 시작 시간(선택):
+            <input id="refDt" type="datetime-local" />
+          </label>
+
+          <label title="출력 HTML 스니펫에 <style>을 포함할지 선택">
+            <input id="includeStyle" type="checkbox" checked />
+            스타일 포함(권장)
+          </label>
+        </div>
+
+        <div class="hint">
+          - "대화 시작 날짜/시간"은 디스코드의 <b>어제/오늘</b>을 실제 날짜로 환산할 때 필요합니다. 비워두면 브라우저의 현재 시간을 사용합니다.
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Output</h2>
+
+        <div class="hint" style="margin-top:0;">
+          미리보기(렌더링)
+        </div>
+        <div class="preview" id="preview"></div>
+
+        <div class="row" style="margin-top:10px">
+          <button id="btnCopyText">텍스트만 복사</button>
+          <button id="btnCopyHtml">HTML 복사</button>
+        </div>
+
+        <textarea id="outputHtml" style="min-height:220px; margin-top:10px;" placeholder="변환을 누르면 HTML 스니펫이 생성됩니다."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Helpers =====
+    const pad2 = (n) => String(n).padStart(2, "0");
+
+    function formatHeaderYYMMDD_ampm(dt){
+      const yy = String(dt.getFullYear()).slice(-2);
+      const mm = pad2(dt.getMonth() + 1);
+      const dd = pad2(dt.getDate());
+      let h = dt.getHours();
+      const m = pad2(dt.getMinutes());
+      const ampm = h >= 12 ? "PM" : "AM";
+      h = h % 12; if (h === 0) h = 12;
+      return `${yy}/${mm}/${dd} ${h}:${m}${ampm}`;
+    }
+
+    function escapeHtml(s){
+      return s
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function getReferenceDate(){
+      const el = document.getElementById("refDt");
+      if (el.value){
+        return new Date(el.value);
+      }
+      return new Date();
+    }
+
+    // EN header
+    const HEADER_EN_RE =
+      /^(.+?)\s*[—-]\s*(Yesterday|Today|Tomorrow|\d{1,2}\/\d{1,2}\/\d{2,4}|[A-Za-z]+ \d{1,2}, \d{4})\s+at\s+(\d{1,2}):(\d{2})\s*(AM|PM)\s*$/i;
+
+    // KR relative header: 어제/오늘/내일 + 오전/오후 + h:mm
+    const HEADER_KR_REL_RE =
+      /^(.+?)\s*[—-]\s*(어제|오늘|내일)\s*(오전|오후)\s*(\d{1,2}):(\d{2})\s*$/;
+
+    // KR absolute date header: "2026. 3. 3. 오후 9:02"
+    const HEADER_KR_ABS_RE =
+      /^(.+?)\s*[—-]\s*(\d{4})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]?\s*(오전|오후)\s*(\d{1,2}):(\d{2})\s*$/;
+
+    function resolveDateTokenEN(dateToken, refDt){
+      const token = dateToken.toLowerCase();
+      const base = new Date(refDt.getTime());
+      base.setSeconds(0,0);
+
+      if (token === "today") return base;
+      if (token === "yesterday"){ base.setDate(base.getDate() - 1); return base; }
+      if (token === "tomorrow"){ base.setDate(base.getDate() + 1); return base; }
+
+      if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(dateToken)){
+        const [m,d,y] = dateToken.split("/").map(x=>x.trim());
+        const year = (y.length === 2) ? (2000 + Number(y)) : Number(y);
+        const dt = new Date(refDt.getTime());
+        dt.setFullYear(year, Number(m)-1, Number(d));
+        return dt;
+      }
+
+      const parsed = Date.parse(dateToken);
+      if (!Number.isNaN(parsed)){
+        return new Date(parsed);
+      }
+
+      return new Date(refDt.getTime());
+    }
+
+    function resolveDateTokenKR(relToken, refDt){
+      const base = new Date(refDt.getTime());
+      base.setSeconds(0,0);
+      if (relToken === "오늘") return base;
+      if (relToken === "어제"){ base.setDate(base.getDate() - 1); return base; }
+      if (relToken === "내일"){ base.setDate(base.getDate() + 1); return base; }
+      return base;
+    }
+
+    function setTimeAmPm(dt, hh, mm, ampm){
+      let h = Number(hh);
+      const m = Number(mm);
+      const A = String(ampm).toUpperCase();
+
+      const isPM = (A === "PM") || (ampm === "오후");
+      const isAM = (A === "AM") || (ampm === "오전");
+
+      if (isPM && h !== 12) h += 12;
+      if (isAM && h === 12) h = 0;
+
+      const out = new Date(dt.getTime());
+      out.setHours(h, m, 0, 0);
+      return out;
+    }
+
+    function parseDiscordPaste(raw, refDt){
+      const lines = raw.replaceAll("\r\n", "\n").replaceAll("\r", "\n").split("\n");
+
+      /** @type {{speaker:string, dt:Date|null, textLines:string[]}[]} */
+      const messages = [];
+      let current = null;
+
+      for (let i=0; i<lines.length; i++){
+        const line = lines[i];
+
+        let m = line.match(HEADER_EN_RE);
+        if (m){
+          const speaker = m[1].trim();
+          const dateToken = m[2].trim();
+          const hh = m[3], mm = m[4], ampm = m[5];
+
+          const d0 = resolveDateTokenEN(dateToken, refDt);
+          const dt = setTimeAmPm(d0, hh, mm, ampm);
+
+          current = { speaker, dt, textLines: [] };
+          messages.push(current);
+          continue;
+        }
+
+        m = line.match(HEADER_KR_REL_RE);
+        if (m){
+          const speaker = m[1].trim();
+          const rel = m[2];
+          const ampm = m[3];
+          const hh = m[4], mm = m[5];
+
+          const d0 = resolveDateTokenKR(rel, refDt);
+          const dt = setTimeAmPm(d0, hh, mm, ampm);
+
+          current = { speaker, dt, textLines: [] };
+          messages.push(current);
+          continue;
+        }
+
+        m = line.match(HEADER_KR_ABS_RE);
+        if (m){
+          const speaker = m[1].trim();
+          const yyyy = Number(m[2]);
+          const mon = Number(m[3]);
+          const day = Number(m[4]);
+          const ampm = m[5];
+          const hh = m[6], mm = m[7];
+
+          const d0 = new Date(refDt.getTime());
+          d0.setFullYear(yyyy, mon - 1, day);
+          const dt = setTimeAmPm(d0, hh, mm, ampm);
+
+          current = { speaker, dt, textLines: [] };
+          messages.push(current);
+          continue;
+        }
+
+        if (!current){
+          if (line.trim() === "") continue;
+          current = { speaker: "", dt: null, textLines: [] };
+          messages.push(current);
+        }
+
+        current.textLines.push(line);
+      }
+
+      /** @type {{speaker:string, dt:Date|null, text:string}[]} */
+      const merged = [];
+      for (const msg of messages){
+        const text = msg.textLines.join("\n").replace(/\s+$/g, "");
+        if (text.trim() === "" && msg.speaker !== "") continue;
+
+        const prev = merged[merged.length - 1];
+        if (prev && prev.speaker === msg.speaker && msg.speaker !== ""){
+          prev.text += (prev.text === "" ? "" : "\n") + text;
+        } else {
+          merged.push({ speaker: msg.speaker, dt: msg.dt, text });
+        }
+      }
+
+      const firstWithTime = merged.find(x => x.dt instanceof Date && !Number.isNaN(x.dt.getTime()));
+      const startDt = firstWithTime ? firstWithTime.dt : null;
+
+      return { merged, startDt };
+    }
+
+    function buildSnippet(merged, startDt, includeStyle){
+      const style = `
+<style>
+.discord-backup{
+  font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR","Apple SD Gothic Neo",sans-serif;
+  color:#0b0b0d;
+  background:transparent
+}
+.discord-backup .meta{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+  font-size:12px;
+  color:#6b7280;
+  margin:0 0 10px 0
+}
+.discord-backup .msg{
+  display:grid;
+  grid-template-columns:120px 1fr;
+  gap:12px;
+  padding:8px 0;
+  border-top:1px solid rgba(0,0,0,.08)
+}
+.discord-backup .msg:first-of-type{border-top:0}
+.discord-backup .who{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+  font-size:12.5px;
+  color:#111827;
+  font-weight:700;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  padding-top:1px
+}
+.discord-backup .who .colon{
+  color:inherit;
+  font-weight:inherit;
+}
+.discord-backup .say{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+  font-size:12.5px;
+  line-height:1.55;
+  white-space:pre-wrap;
+  color:#0b0b0d
+}
+</style>`.trim();
+
+      const meta = startDt ? formatHeaderYYMMDD_ampm(startDt) : "";
+
+      const rows = merged.map(m => {
+        const whoRaw = (m.speaker || "").trim();
+        const who = escapeHtml(whoRaw);
+        const say = escapeHtml(m.text || "");
+        return `
+  <div class="msg">
+    <div class="who">${who ? `${who}<span class="colon">:</span>` : ""}</div>
+    <div class="say">${say}</div>
+  </div>`.trim();
+      }).join("\n");
+
+      const snippet = `
+${includeStyle ? style + "\n" : ""}
+<div class="discord-backup">
+  <div class="meta">${escapeHtml(meta)}</div>
+${rows}
+</div>`.trim();
+
+      return snippet;
+    }
+
+    function buildPlainText(merged, startDt){
+    const meta = startDt ? formatHeaderYYMMDD_ampm(startDt) : "";
+    let out = meta ? (meta + "\n\n") : "";
+
+    const SEP = "\t";
+
+    for (const m of merged){
+        const who = (m.speaker || "").trim();
+        const speakerCell = who ? (who + ":") : "";
+
+        const lines = (m.text || "").split("\n");
+
+        if (lines.length === 0){
+        out += speakerCell + SEP + "\n\n";
+        continue;
+        }
+
+        out += speakerCell + SEP + (lines[0] ?? "") + "\n";
+
+        for (let i=1; i<lines.length; i++){
+        out += SEP + lines[i] + "\n";
+        }
+        out += "\n";
+    }
+
+    return out.trimEnd();
+    }
+
+    // ===== UI Wiring =====
+    const $input = document.getElementById("input");
+    const $outputHtml = document.getElementById("outputHtml");
+    const $preview = document.getElementById("preview");
+    const $includeStyle = document.getElementById("includeStyle");
+
+    function convert(){
+      const refDt = getReferenceDate();
+      const raw = $input.value || "";
+      const { merged, startDt } = parseDiscordPaste(raw, refDt);
+      const snippet = buildSnippet(merged, startDt, $includeStyle.checked);
+
+      $outputHtml.value = snippet;
+      $preview.innerHTML = snippet;
+    }
+
+    document.getElementById("btnConvert").addEventListener("click", convert);
+
+    document.getElementById("btnClear").addEventListener("click", () => {
+      $input.value = "";
+      $outputHtml.value = "";
+      $preview.innerHTML = "";
+    });
+
+    document.getElementById("btnCopyHtml").addEventListener("click", async () => {
+      const v = $outputHtml.value || "";
+      if (!v.trim()) return;
+      await navigator.clipboard.writeText(v);
+    });
+
+    document.getElementById("btnCopyText").addEventListener("click", async () => {
+      const refDt = getReferenceDate();
+      const raw = $input.value || "";
+      const { merged, startDt } = parseDiscordPaste(raw, refDt);
+      const txt = buildPlainText(merged, startDt);
+      await navigator.clipboard.writeText(txt);
+    });
+
+    $includeStyle.addEventListener("change", () => {
+      if (($outputHtml.value || "").trim()) convert();
+    });
+  </script>
+</body>
+</html>
