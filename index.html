@@ -515,32 +515,54 @@ ${rows}
     }
 
     function buildPlainText(merged, startDt){
-    const meta = startDt ? formatHeaderYYMMDD_ampm(startDt) : "";
-    let out = meta ? (meta + "\n\n") : "";
+  const meta = startDt ? formatHeaderYYMMDD_ampm(startDt) : "";
+  let out = meta ? (meta + "\n\n") : "";
 
-    const SEP = "\t";
+  const names = merged.map(m => (m.speaker || "").trim()).filter(Boolean);
+  const maxNameLen = Math.min(14, Math.max(0, ...names.map(n => [...n].length)));
 
-    for (const m of merged){
-        const who = (m.speaker || "").trim();
-        const speakerCell = who ? (who + ":") : "";
+  const GAP = "   ";
+  const labelWidth = maxNameLen + 1;
+  const contPrefix = " ".repeat(labelWidth) + GAP;
 
-        const lines = (m.text || "").split("\n");
+  const hrLen = Math.max(28, labelWidth + GAP.length + 36);
+  const HR = "_".repeat(hrLen);
 
-        if (lines.length === 0){
-        out += speakerCell + SEP + "\n\n";
-        continue;
-        }
+  let prevSpeaker = null;
 
-        out += speakerCell + SEP + (lines[0] ?? "") + "\n";
+  for (let idx = 0; idx < merged.length; idx++){
+    const m = merged[idx];
+    const who = (m.speaker || "").trim();
+    const lines = (m.text || "").split("\n");
 
-        for (let i=1; i<lines.length; i++){
-        out += SEP + lines[i] + "\n";
-        }
-        out += "\n";
+    if (prevSpeaker !== null && who !== prevSpeaker){
+      out = out.trimEnd() + "\n";
+      out += HR + "\n";
     }
 
-    return out.trimEnd();
+    prevSpeaker = who;
+
+    const label = who ? (who + ":") : "";
+    const firstPrefix = label.padEnd(labelWidth) + GAP;
+
+    if (!lines.length){
+      out += firstPrefix + "\n";
+      continue;
     }
+
+    out += firstPrefix + (lines[0] ?? "") + "\n";
+
+    for (let i=1; i<lines.length; i++){
+      out += contPrefix + lines[i] + "\n";
+    }
+
+    if (idx !== merged.length - 1){
+      out += "\n";
+    }
+  }
+
+  return out.trimEnd();
+}
 
     // ===== UI Wiring =====
     const $input = document.getElementById("input");
@@ -572,13 +594,13 @@ ${rows}
       await navigator.clipboard.writeText(v);
     });
 
-    document.getElementById("btnCopyText").addEventListener("click", async () => {
-      const refDt = getReferenceDate();
-      const raw = $input.value || "";
-      const { merged, startDt } = parseDiscordPaste(raw, refDt);
-      const txt = buildPlainText(merged, startDt);
-      await navigator.clipboard.writeText(txt);
-    });
+document.getElementById("btnCopyText").addEventListener("click", async () => {
+  const refDt = getReferenceDate();
+  const raw = $input.value || "";
+  const { merged, startDt } = parseDiscordPaste(raw, refDt);
+  const txt = buildPlainText(merged, startDt);
+  await navigator.clipboard.writeText(txt);
+});
 
     $includeStyle.addEventListener("change", () => {
       if (($outputHtml.value || "").trim()) convert();
